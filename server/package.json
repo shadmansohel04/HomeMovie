@@ -18,5 +18,8 @@
     "pg": "^8.23.1",
     "webtorrent": "^3.0.21",
     "ws": "^8.22.1"
+  },
+  "overrides": {
+    "node-datachannel": "^0.33.6"
   }
 }

@@ -18,5 +18,8 @@
     "express"
   ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "overrides": {
+    "node-datachannel": "^0.33.6"
+  }
 }
