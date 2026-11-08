@@ -96,48 +96,16 @@ function extractCleanTitleForSearch(raw) {
   return base || raw;
 }
 
-// Blacklist garbage words / collections that appear in raw unstructured search indexes
+// Only filter actual non-video junk, malware, and spam files
 const GARBAGE_TITLE_PATTERNS = [
-  /bible/i,
-  /quran/i,
-  /muhammad/i,
-  /jesus/i,
-  /sermon/i,
-  /preaching/i,
-  /prophet/i,
-  /speed_run/i,
-  /speedrun/i,
-  /walkthrough/i,
-  /gameplay/i,
-  /condition zero/i,
-  /counter-strike/i,
-  /minecraft/i,
-  /roblox/i,
-  /fortnite/i,
-  /twitch/i,
-  /livestream/i,
-  /podcast/i,
-  /audiobook/i,
-  /vhs and dvd capture/i,
-  /home video/i,
-  /cassette/i,
-  /commercials/i,
-  /bumper/i,
-  /promos/i,
-  /sample/i,
-  /trailer only/i,
-  /camrip/i,
-  /telesync/i,
-  /hdts/i,
-  /xvid/i,
-  /dvdrip\.xvid/i,
   /\.exe\b/i,
   /\.iso\b/i,
   /\.zip\b/i,
   /\.rar\b/i,
-  /crack/i,
-  /patch/i,
   /keygen/i,
+  /crack\b/i,
+  /sample\s*only/i,
+  /trailer\s*only/i,
 ];
 
 // Valid movie & TV collections in Internet Archive
@@ -179,31 +147,33 @@ export async function searchTorrents(query) {
         const size = parseInt(item.size, 10) || 0;
         const name = item.name || '';
 
-        // 1. Minimum seeders requirement: MUST have at least 5 seeders for a real playable swarm
-        if (seeders < 5) return false;
+        // 1. Minimum seeders requirement: At least 1 active seeder
+        if (seeders < 1) return false;
 
-        // 2. Minimum file size: Real movies/episodes are >= 250MB, and avoid > 60GB raw disk dumps
-        if (size < 250 * 1024 * 1024 || size > 50 * 1024 * 1024 * 1024) return false;
+        // 2. Minimum file size: At least 50MB (supports short clips and episodes)
+        if (size < 50 * 1024 * 1024) return false;
 
-        // 3. Category filter: Must be Video (200 series: 201 Movies, 205 TV, 207 HD Movies, 208 HD TV)
+        // 3. Category filter: Must be Video (200 series) or uncategorized video release
         const cat = parseInt(item.category, 10) || 0;
-        if (cat < 200 || cat > 299) return false;
+        if (cat !== 0 && (cat < 200 || cat > 299)) return false;
 
-        // 4. Garbage title pattern check
+        // 4. Junk file extension check (.exe, .iso, etc.)
         for (const pattern of GARBAGE_TITLE_PATTERNS) {
           if (pattern.test(name)) return false;
         }
 
-        // 5. Keyword Relevance: title must contain user search tokens
-        const titleLower = name.toLowerCase();
-        const matchesQuery = queryTokens.some((token) => titleLower.includes(token));
-        if (!matchesQuery) return false;
+        // 5. Keyword Relevance: title should match at least one search token
+        if (queryTokens.length > 0) {
+          const titleLower = name.toLowerCase();
+          const matchesQuery = queryTokens.some((token) => titleLower.includes(token));
+          if (!matchesQuery) return false;
+        }
 
         return true;
       })
       // Sort by active seeders descending
       .sort((a, b) => (parseInt(b.seeders, 10) || 0) - (parseInt(a.seeders, 10) || 0))
-      .slice(0, 15);
+      .slice(0, 30);
 
     const mapped = await Promise.all(
       filtered.map(async (item) => {
@@ -281,28 +251,22 @@ export async function searchArchive(query) {
       .filter((doc) => {
         const title = doc.title || '';
         const id = doc.identifier || '';
-        const downloads = doc.downloads || 0;
 
-        // 1. Must have significant verified views (at least 2,000 views)
-        if (downloads < 2000) return false;
-
-        // 2. Reject garbage patterns
+        // 1. Reject executable and archive spam patterns
         for (const pattern of GARBAGE_TITLE_PATTERNS) {
           if (pattern.test(title) || pattern.test(id)) return false;
         }
 
-        // 3. Relevance: MUST match the user query tokens in the title
-        const titleLower = title.toLowerCase();
-        const matchesTitle = queryTokens.every((token) => titleLower.includes(token));
-        if (!matchesTitle) {
-          // If not every token matches, check if at least 70% match
-          const matchCount = queryTokens.filter((token) => titleLower.includes(token)).length;
-          if (matchCount / queryTokens.length < 0.6) return false;
+        // 2. Relevance check
+        if (queryTokens.length > 0) {
+          const titleLower = `${title} ${id}`.toLowerCase();
+          const matchesTitle = queryTokens.some((token) => titleLower.includes(token));
+          if (!matchesTitle) return false;
         }
 
         return true;
       })
-      .slice(0, 12);
+      .slice(0, 20);
 
     const mapped = await Promise.all(
       filtered.map(async (doc) => {
