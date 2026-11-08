@@ -139,11 +139,21 @@ export async function searchTorrents(query) {
         'Accept-Language': 'en-US,en;q=0.9',
       },
     });
+
     if (!res.ok) {
       console.warn(`[SearchService] ApiBay responded with status: ${res.status}`);
       return [];
     }
-    const items = await res.json();
+
+    const text = await res.text();
+    // Verify response is valid JSON before parsing (prevent HTML/Cloudflare error crash)
+    const trimmed = text.trim();
+    if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) {
+      console.warn(`[SearchService] ApiBay returned non-JSON response: ${trimmed.slice(0, 80)}`);
+      return [];
+    }
+
+    const items = JSON.parse(trimmed);
     if (!Array.isArray(items) || items.length === 0 || items[0].id === '0') {
       return [];
     }
