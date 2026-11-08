@@ -64,6 +64,7 @@ export const App: React.FC = () => {
   const [continueWatchingList, setContinueWatchingList] = useState<PlaybackProgress[]>([]);
   const [recentlyWatchedList, setRecentlyWatchedList] = useState<PlaybackProgress[]>([]);
   const [isTVModeOpen, setIsTVModeOpen] = useState(false);
+  const [isCastPlayback, setIsCastPlayback] = useState(false);
 
   // Search input state
   const [searchInput, setSearchInput] = useState(urlQuery);
@@ -516,6 +517,7 @@ export const App: React.FC = () => {
         }}
         onPlayIncomingVideo={(video, _episode, _startTime) => {
           setIsTVModeOpen(false);
+          setIsCastPlayback(true);
           handlePlayVideo(video);
         }}
       />
@@ -524,14 +526,19 @@ export const App: React.FC = () => {
       {activeVideo && (
         <VideoPlayerModal
           video={activeVideo}
-          onClose={handleClosePlayer}
+          onClose={() => {
+            setIsCastPlayback(false);
+            handleClosePlayer();
+          }}
           onGoHome={() => {
+            setIsCastPlayback(false);
             handleClosePlayer();
             setSearchInput('');
             navigate('/');
           }}
           onSelectVideo={handlePlayVideo}
           allVideos={displayedVideos}
+          autoFullscreen={isCastPlayback}
         />
       )}
     </div>

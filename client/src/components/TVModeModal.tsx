@@ -60,7 +60,7 @@ export const TVModeModal: React.FC<TVModeModalProps> = ({
           setRemoteCount(data.remoteCount || 1);
         }
 
-        // INCOMING CAST EVENT: Play video and trigger fullscreen
+        // INCOMING CAST EVENT: Play video and trigger video fullscreen
         if (data.event === 'PLAY_ON_TV') {
           const video: VideoItem = data.video;
           setIncomingAlert(`Playing "${video.title}" from remote device...`);
@@ -68,12 +68,7 @@ export const TVModeModal: React.FC<TVModeModalProps> = ({
           setTimeout(() => {
             setIncomingAlert(null);
             onPlayIncomingVideo(video, data.episode, data.startTime);
-
-            // Attempt browser fullscreen request
-            if (document.documentElement.requestFullscreen) {
-              document.documentElement.requestFullscreen().catch(() => {});
-            }
-          }, 1200);
+          }, 800);
         }
       } catch (err) {
         console.error('TV socket message error:', err);

@@ -30,6 +30,7 @@ interface VideoPlayerModalProps {
   onGoHome?: () => void;
   onSelectVideo?: (v: VideoItem) => void;
   allVideos?: VideoItem[];
+  autoFullscreen?: boolean;
 }
 
 export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
@@ -38,6 +39,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   onGoHome,
   onSelectVideo,
   allVideos = [],
+  autoFullscreen = false,
 }) => {
   const [stats, setStats] = useState<TorrentStats | null>(null);
   const [copied, setCopied] = useState(false);
@@ -49,6 +51,28 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [key, setKey] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
+
+  // Auto-fullscreen video element directly if launched via TV Mode
+  useEffect(() => {
+    if (!autoFullscreen) return;
+
+    const requestVideoFullscreen = () => {
+      const el = videoRef.current;
+      if (!el) return;
+
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => {});
+      } else if ((el as any).webkitRequestFullscreen) {
+        (el as any).webkitRequestFullscreen();
+      } else if ((el as any).msRequestFullscreen) {
+        (el as any).msRequestFullscreen();
+      }
+    };
+
+    // Attempt immediately and when video starts playing
+    const timer = setTimeout(requestVideoFullscreen, 300);
+    return () => clearTimeout(timer);
+  }, [autoFullscreen]);
 
   const isDirectArchive = !!video.streamUrl;
   const streamUrl = video.streamUrl
@@ -264,6 +288,17 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
               }}
               onPlaying={() => {
                 setPlayerError(null);
+
+                // If in autoFullscreen TV mode, ensure HTML5 video element is fullscreen
+                if (autoFullscreen && videoRef.current && document.fullscreenElement !== videoRef.current) {
+                  const el = videoRef.current;
+                  if (el.requestFullscreen) {
+                    el.requestFullscreen().catch(() => {});
+                  } else if ((el as any).webkitRequestFullscreen) {
+                    (el as any).webkitRequestFullscreen();
+                  }
+                }
+
                 // Immediately record video in recently watched upon playback start
                 const el = videoRef.current;
                 saveVideoProgress({
