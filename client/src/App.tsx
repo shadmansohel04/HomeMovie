@@ -5,6 +5,7 @@ import { VideoCard } from './components/VideoCard';
 import { VideoPlayerModal } from './components/VideoPlayerModal';
 import { HistorySection } from './components/HistorySection';
 import { TVModeModal } from './components/TVModeModal';
+import { PasswordGate } from './components/PasswordGate';
 import type { VideoItem, PlaybackProgress } from './types';
 import {
   Film,
@@ -38,6 +39,25 @@ export const App: React.FC = () => {
   const [catalog, setCatalog] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return !!localStorage.getItem('p2pflix_auth_token');
+  });
+  const [authChecking, setAuthChecking] = useState<boolean>(true);
+
+  // Check with server if authentication is required
+  useEffect(() => {
+    fetch('/api/auth/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.requiresAuth) {
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAuthChecking(false));
+  }, []);
 
   // Watch history state (Unfinished & Completed)
   const [continueWatchingList, setContinueWatchingList] = useState<PlaybackProgress[]>([]);
@@ -325,6 +345,18 @@ export const App: React.FC = () => {
     () => liveSearchResults.filter((v) => v.source === 'p2p').length,
     [liveSearchResults]
   );
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-red-600 selection:text-white">

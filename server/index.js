@@ -32,6 +32,33 @@ remoteSessionManager.attach(server);
 app.use(cors());
 app.use(express.json());
 
+/**
+ * Authentication Endpoints
+ * Password protected via APP_PASSWORD in server/.env (never stored in repo)
+ */
+app.get('/api/auth/status', (req, res) => {
+  const requiresAuth = !!process.env.APP_PASSWORD;
+  res.json({ requiresAuth });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const { password } = req.body || {};
+  const serverPassword = process.env.APP_PASSWORD;
+
+  // If no password set in env, allow access
+  if (!serverPassword) {
+    return res.json({ success: true, token: 'open-access' });
+  }
+
+  if (password === serverPassword) {
+    // Generate simple token (or hash) for client verification
+    const token = Buffer.from(`auth_${Date.now()}_${serverPassword}`).toString('base64');
+    return res.json({ success: true, token });
+  }
+
+  return res.status(401).json({ success: false, error: 'Incorrect password. Please try again.' });
+});
+
 // Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
