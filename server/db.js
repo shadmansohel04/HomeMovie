@@ -10,13 +10,15 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const { Pool } = pg;
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  'postgresql://user:password@host/neondb';
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.warn('⚠️ DATABASE_URL is not set. Database features will fail unless configured.');
+}
 
 export const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
+  connectionString: connectionString || undefined,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : undefined,
 });
 
 /**
