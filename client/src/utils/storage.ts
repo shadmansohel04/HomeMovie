@@ -1,4 +1,5 @@
 import type { PlaybackProgress } from '../types';
+import { getApiUrl } from '../config';
 
 /**
  * Storage adapter interface to support seamless migration to remote databases (e.g. Postgres, MongoDB, Supabase, SQLite, REST)
@@ -116,7 +117,7 @@ export class RemotePostgresHistoryRepository implements IHistoryRepository {
 
   async getAllProgress(): Promise<Record<string, PlaybackProgress>> {
     try {
-      const res = await fetch('/api/history');
+      const res = await fetch(getApiUrl('/api/history'));
       if (res.ok) {
         const data = await res.json();
         const map: Record<string, PlaybackProgress> = {};
@@ -138,7 +139,7 @@ export class RemotePostgresHistoryRepository implements IHistoryRepository {
 
     // 2. Persist to Neon PostgreSQL database
     try {
-      await fetch('/api/history', {
+      await fetch(getApiUrl('/api/history'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item),
@@ -151,7 +152,7 @@ export class RemotePostgresHistoryRepository implements IHistoryRepository {
   async removeProgress(videoId: string): Promise<void> {
     await this.localFallback.removeProgress(videoId);
     try {
-      await fetch(`/api/history/${encodeURIComponent(videoId)}`, {
+      await fetch(getApiUrl(`/api/history/${encodeURIComponent(videoId)}`), {
         method: 'DELETE',
       });
     } catch (err) {
@@ -161,7 +162,7 @@ export class RemotePostgresHistoryRepository implements IHistoryRepository {
 
   async getRecentlyWatched(): Promise<PlaybackProgress[]> {
     try {
-      const res = await fetch('/api/history');
+      const res = await fetch(getApiUrl('/api/history'));
       if (res.ok) {
         const data = await res.json();
         const list: PlaybackProgress[] = data.recentlyWatched || [];
@@ -177,7 +178,7 @@ export class RemotePostgresHistoryRepository implements IHistoryRepository {
   async recordRecentlyWatched(item: PlaybackProgress): Promise<void> {
     await this.localFallback.recordRecentlyWatched(item);
     try {
-      await fetch('/api/history', {
+      await fetch(getApiUrl('/api/history'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item),
@@ -190,7 +191,7 @@ export class RemotePostgresHistoryRepository implements IHistoryRepository {
   async removeRecentWatched(videoId: string): Promise<void> {
     await this.localFallback.removeRecentWatched(videoId);
     try {
-      await fetch(`/api/history/${encodeURIComponent(videoId)}`, {
+      await fetch(getApiUrl(`/api/history/${encodeURIComponent(videoId)}`), {
         method: 'DELETE',
       });
     } catch (err) {
@@ -201,7 +202,7 @@ export class RemotePostgresHistoryRepository implements IHistoryRepository {
   async clearAllHistory(): Promise<void> {
     await this.localFallback.clearAllHistory();
     try {
-      await fetch('/api/history', { method: 'DELETE' });
+      await fetch(getApiUrl('/api/history'), { method: 'DELETE' });
     } catch (err) {
       console.error('[RemotePostgresHistoryRepository] Clear error:', err);
     }

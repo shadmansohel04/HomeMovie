@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Cast, X, Check, AlertCircle, Tv, Loader2 } from 'lucide-react';
+import { getWsUrl } from '../config';
 import type { VideoItem } from '../types';
 
 interface CastModalProps {
@@ -34,8 +35,7 @@ export const CastModal: React.FC<CastModalProps> = ({
     setStatus('pairing');
     setErrorMessage('');
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/remote`;
+    const wsUrl = getWsUrl('/ws/remote');
     const socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
