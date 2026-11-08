@@ -1,0 +1,22 @@
+{
+  "name": "homenetflix",
+  "version": "1.0.0",
+  "description": "Full-stack React & Node.js WebTorrent P2P Video Streaming Application",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "server": "npm --prefix server start",
+    "client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build"
+  },
+  "keywords": [
+    "webtorrent",
+    "p2p",
+    "video-streaming",
+    "react",
+    "nodejs",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC"
+}
