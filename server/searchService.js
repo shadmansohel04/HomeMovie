@@ -123,13 +123,16 @@ const PREFERRED_ARCHIVE_COLLECTIONS = new Set([
 ]);
 
 /**
- * Searches the BitTorrent swarm network via ApiBay indexer with strict quality filtering
+ * Searches the BitTorrent swarm network via ApiBay indexer with automatic proxy fallbacks
  */
 export async function searchTorrents(query) {
   if (!query || !query.trim()) return [];
   const cleanQ = query.trim();
   const queryTokens = extractTokens(cleanQ);
 
+  let items = [];
+
+  // Primary: ApiBay JSON API
   try {
     const res = await fetch(`https://apibay.org/q.php?q=${encodeURIComponent(cleanQ)}`, {
       headers: {
@@ -140,24 +143,78 @@ export async function searchTorrents(query) {
       },
     });
 
-    if (!res.ok) {
-      console.warn(`[SearchService] ApiBay responded with status: ${res.status}`);
-      return [];
+    if (res.ok) {
+      const text = await res.text();
+      const trimmed = text.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id !== '0') {
+          items = parsed;
+        }
+      }
     }
+  } catch (err) {
+    console.warn('[SearchService] Primary ApiBay failed, attempting mirrors:', err.message);
+  }
 
-    const text = await res.text();
-    // Verify response is valid JSON before parsing (prevent HTML/Cloudflare error crash)
-    const trimmed = text.trim();
-    if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) {
-      console.warn(`[SearchService] ApiBay returned non-JSON response: ${trimmed.slice(0, 80)}`);
-      return [];
+  // Secondary Fallback: tpb.party HTML proxy (in case ApiBay blocks the cloud datacenter)
+  if (items.length === 0) {
+    try {
+      const proxyRes = await fetch(
+        `https://tpb.party/search/${encodeURIComponent(cleanQ)}/1/99/200`,
+        {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+        }
+      );
+
+      if (proxyRes.ok) {
+        const html = await proxyRes.text();
+        const rows = html.split('<tr>');
+        for (const row of rows.slice(1)) {
+          const magnetMatch = row.match(/href="(magnet:\?xt=urn:btih:[^"]+)"/i);
+          const titleMatch = row.match(/title="Details for ([^"]+)"/i) || row.match(/class="detLink"[^>]*>([^<]+)/i);
+          const seedersMatch = row.match(/<td align="right">(\d+)<\/td>/i);
+          const sizeMatch = row.match(/<td align="right">([\d\.]+)&nbsp;([KMG]iB)<\/td>/i);
+
+          if (magnetMatch && titleMatch) {
+            const rawName = titleMatch[1];
+            const hashMatch = magnetMatch[1].match(/urn:btih:([a-zA-Z0-9]+)/i);
+            const seeders = seedersMatch ? parseInt(seedersMatch[1], 10) : 10;
+            let size = 1024 * 1024 * 700; // default 700MB
+            if (sizeMatch) {
+              const num = parseFloat(sizeMatch[1]);
+              const unit = sizeMatch[2];
+              if (unit === 'GiB') size = num * 1024 * 1024 * 1024;
+              else if (unit === 'MiB') size = num * 1024 * 1024;
+            }
+
+            items.push({
+              id: hashMatch ? hashMatch[1].slice(0, 12) : `gen-${items.length}`,
+              name: rawName,
+              info_hash: hashMatch ? hashMatch[1] : '',
+              seeders: seeders.toString(),
+              leechers: '5',
+              size: size.toString(),
+              category: '201',
+              directMagnet: magnetMatch[1],
+            });
+          }
+        }
+      }
+    } catch (fallbackErr) {
+      console.warn('[SearchService] Fallback mirror error:', fallbackErr.message);
     }
+  }
 
-    const items = JSON.parse(trimmed);
-    if (!Array.isArray(items) || items.length === 0 || items[0].id === '0') {
-      return [];
-    }
+  if (items.length === 0) {
+    return [];
+  }
 
+  try {
     const filtered = items
       .filter((item) => {
         if (item.id === '0') return false;
@@ -201,7 +258,9 @@ export async function searchTorrents(query) {
         const size = parseInt(item.size, 10) || 0;
         const rawName = item.name;
         const cleanName = formatReleaseTitle(rawName);
-        const magnet = `magnet:?xt=urn:btih:${item.info_hash}&dn=${encodeURIComponent(cleanName)}${TRACKERS}`;
+        const magnet =
+          item.directMagnet ||
+          `magnet:?xt=urn:btih:${item.info_hash}&dn=${encodeURIComponent(cleanName)}${TRACKERS}`;
 
         let category = 'Movie';
         if (item.category === '205' || item.category === '208' || /S\d\d|Season/i.test(rawName)) {
