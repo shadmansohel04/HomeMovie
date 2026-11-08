@@ -17,6 +17,8 @@ import {
   Tv,
   Cast,
   Home,
+  Maximize,
+  Minimize,
 } from 'lucide-react';
 import type { VideoItem, TorrentStats } from '../types';
 import { formatBytes, formatSpeed } from '../utils/format';
@@ -48,30 +50,29 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [isCastOpen, setIsCastOpen] = useState(false);
   const [hasResumed, setHasResumed] = useState(false);
   const [resumePrompt, setResumePrompt] = useState<{ time: number } | null>(null);
+  const [showFullscreenOverlay, setShowFullscreenOverlay] = useState(false);
   const [key, setKey] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
 
-  // Auto-fullscreen video element directly if launched via TV Mode
+  // Try direct video fullscreen and fallback to full-window immersion
   useEffect(() => {
     if (!autoFullscreen) return;
 
-    const requestVideoFullscreen = () => {
-      const el = videoRef.current;
-      if (!el) return;
-
+    const el = videoRef.current;
+    if (el) {
       if (el.requestFullscreen) {
-        el.requestFullscreen().catch(() => {});
+        el.requestFullscreen().catch(() => {
+          // If browser security policy blocks programmatic requestFullscreen,
+          // show a 1-click tap banner to fulfill user gesture requirement
+          setShowFullscreenOverlay(true);
+        });
       } else if ((el as any).webkitRequestFullscreen) {
-        (el as any).webkitRequestFullscreen();
-      } else if ((el as any).msRequestFullscreen) {
-        (el as any).msRequestFullscreen();
+        try { (el as any).webkitRequestFullscreen(); } catch { setShowFullscreenOverlay(true); }
+      } else {
+        setShowFullscreenOverlay(true);
       }
-    };
-
-    // Attempt immediately and when video starts playing
-    const timer = setTimeout(requestVideoFullscreen, 300);
-    return () => clearTimeout(timer);
+    }
   }, [autoFullscreen]);
 
   const isDirectArchive = !!video.streamUrl;
@@ -181,10 +182,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/95 backdrop-blur-2xl flex flex-col justify-start items-center p-3 sm:p-6 transition-all">
-      <div className="w-full max-w-5xl my-auto">
+    <div
+      className={`fixed inset-0 z-50 overflow-y-auto bg-black flex flex-col justify-start items-center transition-all ${
+        autoFullscreen ? 'p-0' : 'p-3 sm:p-6 backdrop-blur-2xl bg-black/95'
+      }`}
+    >
+      <div className={`w-full my-auto ${autoFullscreen ? 'max-w-none h-screen flex flex-col' : 'max-w-5xl'}`}>
         {/* Navigation & Title Header Bar */}
-        <div className="flex items-center justify-between gap-4 mb-3 px-1">
+        <div className={`flex items-center justify-between gap-4 px-3 py-2 ${autoFullscreen ? 'bg-neutral-950/80 backdrop-blur-md border-b border-neutral-800' : 'mb-3 px-1'}`}>
           <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
             {onGoHome && (
               <button
@@ -262,9 +267,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         </div>
 
         {/* Video Player Container */}
-        <div className="relative rounded-2xl overflow-hidden bg-black border border-neutral-800 shadow-2xl">
+        <div className={`relative overflow-hidden bg-black ${autoFullscreen ? 'flex-1 w-full h-full rounded-none' : 'rounded-2xl border border-neutral-800 shadow-2xl'}`}>
           {/* HTML5 Native Video Player */}
-          <div className="relative aspect-video w-full bg-black flex items-center justify-center">
+          <div className={`relative w-full bg-black flex items-center justify-center ${autoFullscreen ? 'h-full' : 'aspect-video'}`}>
             <video
               key={`${video.id}-${key}`}
               ref={videoRef}
@@ -335,6 +340,26 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
+              </div>
+            )}
+
+            {/* 1-Click Tap Overlay for TV screen if browser prevents programmatic fullscreen */}
+            {showFullscreenOverlay && (
+              <div
+                onClick={() => {
+                  const el = videoRef.current;
+                  if (el) {
+                    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+                    else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+                  }
+                  setShowFullscreenOverlay(false);
+                }}
+                className="absolute inset-0 z-40 bg-black/60 flex flex-col items-center justify-center cursor-pointer backdrop-blur-sm group transition"
+              >
+                <div className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-red-600 group-hover:bg-red-500 text-white font-bold text-base shadow-2xl shadow-red-600/50 transform group-hover:scale-105 transition-all">
+                  <Maximize className="w-5 h-5" />
+                  <span>Click anywhere to Fullscreen Video</span>
+                </div>
               </div>
             )}
 
