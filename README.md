@@ -4,7 +4,7 @@ Full-stack real-time streaming application featuring P2P WebTorrent streaming, I
 
 ## Live Deployment
 
-- **Web App**: [https://homemovie.onrender.com](https://homemovie.onrender.com)
+- **Web App**: [https://homemovie-o8ag.onrender.com/](https://homemovie-o8ag.onrender.com/)
 
 ## Features
 
