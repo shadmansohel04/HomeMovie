@@ -21,6 +21,7 @@ import {
 import type { VideoItem, TorrentStats } from '../types';
 import { formatBytes, formatSpeed } from '../utils/format';
 import { saveVideoProgress, getVideoProgress } from '../utils/storage';
+import { getApiUrl } from '../config';
 import { CastModal } from './CastModal';
 
 interface VideoPlayerModalProps {
@@ -51,8 +52,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   const isDirectArchive = !!video.streamUrl;
   const streamUrl = video.streamUrl
-    ? video.streamUrl
-    : `/api/stream?magnet=${encodeURIComponent(video.magnetLink)}`;
+    ? getApiUrl(video.streamUrl)
+    : getApiUrl(`/api/stream?magnet=${encodeURIComponent(video.magnetLink)}`);
 
   // Check saved progress on load
   useEffect(() => {
@@ -109,7 +110,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
     const fetchStats = async () => {
       try {
-        const res = await fetch(`/api/stats?magnet=${encodeURIComponent(video.magnetLink)}`);
+        const res = await fetch(getApiUrl(`/api/stats?magnet=${encodeURIComponent(video.magnetLink)}`));
         if (res.ok) {
           const data: TorrentStats = await res.json();
           if (isMounted) setStats(data);

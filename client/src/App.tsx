@@ -6,6 +6,7 @@ import { VideoPlayerModal } from './components/VideoPlayerModal';
 import { HistorySection } from './components/HistorySection';
 import { TVModeModal } from './components/TVModeModal';
 import { PasswordGate } from './components/PasswordGate';
+import { getApiUrl } from './config';
 import type { VideoItem, PlaybackProgress } from './types';
 import {
   Film,
@@ -48,7 +49,7 @@ export const App: React.FC = () => {
 
   // Check with server if authentication is required
   useEffect(() => {
-    fetch('/api/auth/status')
+    fetch(getApiUrl('/api/auth/status'))
       .then((res) => res.json())
       .then((data) => {
         if (!data.requiresAuth) {
@@ -82,7 +83,7 @@ export const App: React.FC = () => {
 
     // 2. Fetch fresh data from Neon PostgreSQL database
     try {
-      const res = await fetch('/api/history');
+      const res = await fetch(getApiUrl('/api/history'));
       if (res.ok) {
         const data = await res.json();
         if (data.continueWatching) setContinueWatchingList(data.continueWatching);
@@ -112,7 +113,7 @@ export const App: React.FC = () => {
   // Fetch initial curated catalog for search fallback
   const fetchCatalog = async () => {
     try {
-      const res = await fetch('/api/catalog');
+      const res = await fetch(getApiUrl('/api/catalog'));
       if (res.ok) {
         const data: VideoItem[] = await res.json();
         setCatalog(
@@ -142,7 +143,7 @@ export const App: React.FC = () => {
     let isMounted = true;
     setIsSearchingLive(true);
 
-    fetch(`/api/search?q=${encodeURIComponent(urlQuery.trim())}&source=all`)
+    fetch(getApiUrl(`/api/search?q=${encodeURIComponent(urlQuery.trim())}&source=all`))
       .then((res) => {
         if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
         return res.json();
@@ -312,7 +313,7 @@ export const App: React.FC = () => {
         description: '',
         poster: `https://archive.org/services/img/${id}`,
         backdrop: `https://archive.org/services/img/${id}`,
-        streamUrl: `/api/archive-stream?id=${encodeURIComponent(id)}`,
+        streamUrl: getApiUrl(`/api/archive-stream?id=${encodeURIComponent(id)}`),
         magnetLink: '',
       };
     }

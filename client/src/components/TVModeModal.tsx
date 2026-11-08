@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Tv, Copy, Check, Cast, Maximize, X, Volume2, Sparkles, AlertCircle, Home } from 'lucide-react';
+import { getWsUrl } from '../config';
 import type { VideoItem } from '../types';
 
 interface TVModeModalProps {
@@ -31,8 +32,7 @@ export const TVModeModal: React.FC<TVModeModalProps> = ({
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/remote`;
+    const wsUrl = getWsUrl('/ws/remote');
     const socket = new WebSocket(wsUrl);
     wsRef.current = socket;
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, ArrowRight, Film, AlertCircle, Loader2 } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 interface PasswordGateProps {
   onAuthenticated: () => void;
@@ -18,7 +19,7 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({ onAuthenticated }) =
     setError('');
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: password.trim() }),
