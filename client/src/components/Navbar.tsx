@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ArrowLeft, ArrowRight, Loader2, Home, Tv } from 'lucide-react';
+import { Search, X, Loader2, Home, Tv } from 'lucide-react';
 
 interface NavbarProps {
   searchQuery: string;
@@ -40,26 +40,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800/80 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Navigation History & Left Brand (Home) */}
+        {/* Left Brand (Home) */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Browser Back / Forward Controls */}
-          <div className="flex items-center gap-1 bg-neutral-900/80 border border-neutral-800 p-1 rounded-xl">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition cursor-pointer"
-              title="Back"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => navigate(1)}
-              className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition cursor-pointer"
-              title="Forward"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
           {/* Simple Clean Home Link */}
           <button
             onClick={handleGoHome}
