@@ -54,10 +54,23 @@ export const App: React.FC = () => {
     setSearchInput(urlQuery);
   }, [urlQuery]);
 
-  // Load Watch History from localStorage & listen for changes
-  const refreshHistory = () => {
+  // Load Watch History from Neon DB / localStorage & listen for changes
+  const refreshHistory = async () => {
+    // 1. Instant load from local cache
     setContinueWatchingList(getContinueWatchingList());
     setRecentlyWatchedList(getRecentlyWatched());
+
+    // 2. Fetch fresh data from Neon PostgreSQL database
+    try {
+      const res = await fetch('/api/history');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.continueWatching) setContinueWatchingList(data.continueWatching);
+        if (data.recentlyWatched) setRecentlyWatchedList(data.recentlyWatched);
+      }
+    } catch (err) {
+      // Keep local state on network error
+    }
   };
 
   useEffect(() => {

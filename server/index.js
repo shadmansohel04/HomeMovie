@@ -9,6 +9,14 @@ import { CATALOG } from './catalog.js';
 import { torrentManager } from './torrentManager.js';
 import { searchTorrents, searchArchive, getArchiveMediaUrl, getEpisodes } from './searchService.js';
 import { remoteSessionManager } from './remoteSessionManager.js';
+import {
+  initDb,
+  savePlaybackProgress,
+  getContinueWatching,
+  getRecentlyWatched,
+  deleteWatchProgress,
+  clearAllWatchHistory,
+} from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,6 +49,54 @@ app.use((req, res, next) => {
  */
 app.get('/api/catalog', (req, res) => {
   res.json(CATALOG);
+});
+
+/**
+ * Watch History & Progress API Endpoints (Neon Postgres backed)
+ */
+app.get('/api/history', async (req, res) => {
+  try {
+    const continueWatching = await getContinueWatching();
+    const recentlyWatched = await getRecentlyWatched();
+    res.json({ continueWatching, recentlyWatched });
+  } catch (err) {
+    console.error('Error fetching watch history:', err);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+app.post('/api/history', async (req, res) => {
+  try {
+    const item = req.body;
+    if (!item || !item.videoId) {
+      return res.status(400).json({ error: 'videoId is required' });
+    }
+    await savePlaybackProgress(item);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error saving watch history:', err);
+    res.status(500).json({ error: 'Failed to save progress' });
+  }
+});
+
+app.delete('/api/history/:videoId', async (req, res) => {
+  try {
+    await deleteWatchProgress(req.params.videoId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting watch history:', err);
+    res.status(500).json({ error: 'Failed to delete history' });
+  }
+});
+
+app.delete('/api/history', async (req, res) => {
+  try {
+    await clearAllWatchHistory();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error clearing watch history:', err);
+    res.status(500).json({ error: 'Failed to clear history' });
+  }
 });
 
 /**
@@ -268,7 +324,8 @@ if (fs.existsSync(clientDistPath)) {
   });
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
+  await initDb();
   console.log(`===============================================`);
   console.log(` WebTorrent Video Streaming Server`);
   console.log(` Running on: http://localhost:${PORT}`);

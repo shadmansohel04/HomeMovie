@@ -102,10 +102,116 @@ export class LocalStorageHistoryRepository implements IHistoryRepository {
 }
 
 /**
- * Global repository instance.
- * When a backend DB is ready, replace new LocalStorageHistoryRepository() with new RemoteDatabaseHistoryRepository()
+ * Neon PostgreSQL Remote Repository implementation.
+ * Persists watch history & progress directly to the Neon Postgres database via /api/history
+ * and synchronizes with localStorage for instant zero-latency UI rendering and offline fallback.
  */
-let currentRepo: IHistoryRepository = new LocalStorageHistoryRepository();
+export class RemotePostgresHistoryRepository implements IHistoryRepository {
+  private localFallback = new LocalStorageHistoryRepository();
+
+  async getProgress(videoId: string): Promise<PlaybackProgress | null> {
+    const all = await this.getAllProgress();
+    return all[videoId] || null;
+  }
+
+  async getAllProgress(): Promise<Record<string, PlaybackProgress>> {
+    try {
+      const res = await fetch('/api/history');
+      if (res.ok) {
+        const data = await res.json();
+        const map: Record<string, PlaybackProgress> = {};
+        (data.continueWatching || []).forEach((item: PlaybackProgress) => {
+          map[item.videoId] = item;
+        });
+        localStorage.setItem(PROGRESS_KEY, JSON.stringify(map));
+        return map;
+      }
+    } catch (err) {
+      console.warn('[RemotePostgresHistoryRepository] Falling back to local storage:', err);
+    }
+    return this.localFallback.getAllProgress();
+  }
+
+  async saveProgress(item: PlaybackProgress): Promise<void> {
+    // 1. Immediately write to local storage for instant UI responsiveness
+    await this.localFallback.saveProgress(item);
+
+    // 2. Persist to Neon PostgreSQL database
+    try {
+      await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
+    } catch (err) {
+      console.error('[RemotePostgresHistoryRepository] Failed to sync to Neon DB:', err);
+    }
+  }
+
+  async removeProgress(videoId: string): Promise<void> {
+    await this.localFallback.removeProgress(videoId);
+    try {
+      await fetch(`/api/history/${encodeURIComponent(videoId)}`, {
+        method: 'DELETE',
+      });
+    } catch (err) {
+      console.error('[RemotePostgresHistoryRepository] Delete error:', err);
+    }
+  }
+
+  async getRecentlyWatched(): Promise<PlaybackProgress[]> {
+    try {
+      const res = await fetch('/api/history');
+      if (res.ok) {
+        const data = await res.json();
+        const list: PlaybackProgress[] = data.recentlyWatched || [];
+        localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+        return list;
+      }
+    } catch (err) {
+      console.warn('[RemotePostgresHistoryRepository] Falling back to local recent:', err);
+    }
+    return this.localFallback.getRecentlyWatched();
+  }
+
+  async recordRecentlyWatched(item: PlaybackProgress): Promise<void> {
+    await this.localFallback.recordRecentlyWatched(item);
+    try {
+      await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
+    } catch (err) {
+      console.error('[RemotePostgresHistoryRepository] Failed to sync recent to Neon DB:', err);
+    }
+  }
+
+  async removeRecentWatched(videoId: string): Promise<void> {
+    await this.localFallback.removeRecentWatched(videoId);
+    try {
+      await fetch(`/api/history/${encodeURIComponent(videoId)}`, {
+        method: 'DELETE',
+      });
+    } catch (err) {
+      console.error('[RemotePostgresHistoryRepository] Delete recent error:', err);
+    }
+  }
+
+  async clearAllHistory(): Promise<void> {
+    await this.localFallback.clearAllHistory();
+    try {
+      await fetch('/api/history', { method: 'DELETE' });
+    } catch (err) {
+      console.error('[RemotePostgresHistoryRepository] Clear error:', err);
+    }
+  }
+}
+
+/**
+ * Global repository instance configured to Neon PostgreSQL
+ */
+let currentRepo: IHistoryRepository = new RemotePostgresHistoryRepository();
 
 export function setHistoryRepository(repo: IHistoryRepository) {
   currentRepo = repo;
