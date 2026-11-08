@@ -132,8 +132,17 @@ export async function searchTorrents(query) {
 
   try {
     const res = await fetch(`https://apibay.org/q.php?q=${encodeURIComponent(cleanQ)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
     });
+    if (!res.ok) {
+      console.warn(`[SearchService] ApiBay responded with status: ${res.status}`);
+      return [];
+    }
     const items = await res.json();
     if (!Array.isArray(items) || items.length === 0 || items[0].id === '0') {
       return [];
